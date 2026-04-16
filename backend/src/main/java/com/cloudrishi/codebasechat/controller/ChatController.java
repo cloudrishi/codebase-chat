@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${app.cors.allowed-origins}")
 public class ChatController {
 
     private final ChatService chatService;
@@ -70,6 +70,6 @@ public class ChatController {
      */
     @GetMapping("/health")
     public ResponseEntity<String> health() {
-        return ResponseEntity.ok("codebase-chat is running");
+        return ResponseEntity.ok("codebase-chat is running\n");
     }
 }

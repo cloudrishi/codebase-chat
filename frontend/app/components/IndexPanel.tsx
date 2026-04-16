@@ -11,7 +11,7 @@ interface IndexPanelProps {
  * and trigger the indexing pipeline via the Spring Boot backend.
  */
 export default function IndexPanel({ onIndexed }: IndexPanelProps) {
-  const [repoPath, setRepoPath] = useState("/Users/rish/working/p2-projects/master-data-service/src/main/java");
+  const [repoPath, setRepoPath] = useState("");
   const [status, setStatus] = useState<"idle" | "indexing" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -21,7 +21,7 @@ export default function IndexPanel({ onIndexed }: IndexPanelProps) {
     setMessage("");
 
     try {
-      const res = await fetch("http://localhost:8080/api/index", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/index`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoPath }),

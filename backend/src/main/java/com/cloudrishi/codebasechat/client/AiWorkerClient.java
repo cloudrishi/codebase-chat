@@ -8,6 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * HTTP client responsible for communicating with the Python AI Worker microservice.
@@ -55,12 +56,22 @@ public class AiWorkerClient {
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .block();
 
-        List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+        if (response == null || !response.containsKey("results")) {
+            return List.of();
+        }
 
-        return results.stream()
-                .map(this::mapToCodeChunk)
+        Object results = response.get("results");
+        if (!(results instanceof List<?> rawList)) {
+            return List.of();
+        }
+
+        return rawList.stream()
+                .filter(item -> item instanceof Map<?, ?>)
+                .map(item -> mapToCodeChunk((Map<?, ?>) item))
                 .toList();
     }
+
+
 
     /**
      * Triggers the AI Worker to walk and index a Java repository.
@@ -83,9 +94,26 @@ public class AiWorkerClient {
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .block();
 
-        return response.get("status").toString();
+        if (response == null) {
+            return "indexing failed — no response from AI worker";
+        }
+
+        return Optional.ofNullable(response.get("status"))
+                .map(Object::toString)
+                .orElse("unknown status");
     }
 
+    /**
+     * Safely casts a raw object from the API response list
+     * to a Map and delegates to mapToCodeChunk.
+     *
+     * @param item raw object from the deserialized JSON list
+     * @return a populated {@link CodeChunk} object
+     */
+    @SuppressWarnings("unchecked")
+    private CodeChunk mapFromRaw(Object item) {
+        return mapToCodeChunk((Map<?, ?>) item);
+    }
     /**
      * Maps a raw JSON response map from the AI Worker
      * into a typed {@link CodeChunk} domain object.
@@ -97,7 +125,7 @@ public class AiWorkerClient {
      * @param map the raw deserialized JSON map from the AI Worker response
      * @return a populated {@link CodeChunk} object
      */
-    private CodeChunk mapToCodeChunk(Map<String, Object> map) {
+    private CodeChunk mapToCodeChunk(Map<?, ?> map) {
         CodeChunk chunk = new CodeChunk();
         chunk.setFilePath((String) map.get("file_path"));
         chunk.setClassName((String) map.get("class_name"));

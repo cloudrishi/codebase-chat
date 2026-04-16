@@ -3,7 +3,28 @@ from pydantic import BaseModel
 from app.parser.java_parser import parse_java_file
 from app.embedder import embed_chunks, model
 from app.db import store_chunks, search_chunks
+from pathlib import Path
 import os
+
+# Allowlist of safe root directories
+ALLOWED_BASE_PATHS = [
+    os.path.expanduser("~/working"),
+    "/tmp"
+]
+
+def is_safe_path(path: str) -> bool:
+    """
+    Validates that the requested repo path is within
+    an allowed base directory to prevent path traversal attacks.
+    """
+    try:
+        resolved = Path(path).resolve()
+        return any(
+            str(resolved).startswith(str(Path(base).resolve()))
+            for base in ALLOWED_BASE_PATHS
+        )
+    except Exception:
+        return False
 
 app = FastAPI(title="AI Worker - Java Code Chunker")
 
@@ -26,9 +47,12 @@ def index_repository(request: IndexRequest):
     """
     repo_path = request.repo_path
 
+    if not is_safe_path(repo_path):
+        raise HTTPException(status_code=403, detail="Path not allowed")
+    
     if not os.path.exists(repo_path):
         raise HTTPException(status_code=400, detail=f"Path not found: {repo_path}")
-
+    
     all_chunks = []
 
     for root, dirs, files in os.walk(repo_path):

@@ -1,21 +1,26 @@
 spring:
-    application:
-        name: codebase-chat
-    datasource:
-        url: jdbc:postgresql://localhost:5432/codebase_chat
-        username: admin
-        password: admin
-        driver-class-name: org.postgresql.Driver
-    jpa:
-        hibernate:
-            ddl-auto: none
-        show-sql: false
+  application:
+    name: codebase-chat
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/codebase_chat}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:admin}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
 server:
-    port: 8080
+  port: 8080
 
 ai-worker:
-    base-url: http://localhost:8001
+  base-url: ${AI_WORKER_URL:http://localhost:8001}
 
 ollama:
-    base-url: http://localhost:11434
-    model: llama3.1:8b
+  base-url: ${OLLAMA_URL:http://localhost:11434}
+  model: ${OLLAMA_MODEL:llama3.1:8b}
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000

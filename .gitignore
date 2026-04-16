@@ -30,3 +30,5 @@ frontend/.env.local
 *.json
 !package.json
 !tsconfig.json
+backend/.env
+frontend/.env.local
