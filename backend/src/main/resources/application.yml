@@ -1,0 +1,21 @@
+spring:
+    application:
+        name: codebase-chat
+    datasource:
+        url: jdbc:postgresql://localhost:5432/codebase_chat
+        username: admin
+        password: admin
+        driver-class-name: org.postgresql.Driver
+    jpa:
+        hibernate:
+            ddl-auto: none
+        show-sql: false
+server:
+    port: 8080
+
+ai-worker:
+    base-url: http://localhost:8001
+
+ollama:
+    base-url: http://localhost:11434
+    model: llama3.1:8b

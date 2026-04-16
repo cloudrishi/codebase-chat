@@ -1,0 +1,32 @@
+# Python
+ai-worker/venv/
+ai-worker/__pycache__/
+ai-worker/.env
+ai-worker/*.pyc
+
+# Java
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.log
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+
+# General
+.DS_Store
+*.log
+.env
+
+# Python cache
+**/__pycache__/
+*.pyc
+
+# IntelliJ
+.idea/
+
+# Scratch files
+*.json
+!package.json
+!tsconfig.json
