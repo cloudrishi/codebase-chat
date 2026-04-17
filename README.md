@@ -247,17 +247,20 @@ codebase-chat/
 
 ## code quality
 
-| Metric | Score |
-|---|---|
-| Architecture | 8/10 |
-| Clarity and naming | 8/10 |
-| Documentation | 8/10 |
-| Single responsibility | 7/10 |
-| Error handling | 7/10 |
-| Security | 7/10 |
-| Project average MI | ~74 (Good) |
+Independently reviewed against Robert Martin, Martin Fowler, Kent Beck, and Ward Cunningham standards. Scores reflect the current state of the codebase after security hardening and stability improvements.
 
-*Assessed against Robert Martin, Martin Fowler, Kent Beck standards.*
+| Metric | Score | Notes |
+|---|---|---|
+| Architecture | 8/10 | Clean polyglot separation, constructor injection, good design decisions |
+| Clarity and naming | 8/10 | Self-describing methods throughout — `buildContext`, `mapToCodeChunk`, `parse_java_file` |
+| Documentation | 9/10 | Full Javadoc, Python docstrings, comprehensive README |
+| Single responsibility | 7/10 | Good separation across services; `db.py` mixes connection and query logic |
+| Error handling | 7/10 | try/except/finally, transaction rollback, null checks, Optional |
+| Security | 7/10 | Path traversal protected, CORS restricted, credentials externalized |
+| Production readiness | 5/10 | Solid prototype; CI/CD and test coverage still pending |
+| Testability | 3/10 | Constructor injection helps; external dependencies not yet abstracted behind interfaces |
+| Test coverage | 1/10 | Pending — see roadmap |
+| **Project average MI** | **~78** | **Good** |
 
 ---
 
@@ -269,6 +272,7 @@ codebase-chat/
 - **Graph view** — visualize class/method relationships in the React frontend
 - **Multi-repo support** — index and query multiple repositories simultaneously
 - **Token-aware chunking** — enforce 512-token limit per chunk to prevent embedding truncation
+- **Dockerize all layers** — single `docker compose up` to run the full stack
 
 ---
 
