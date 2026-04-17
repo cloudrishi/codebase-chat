@@ -1,20 +1,48 @@
 import psycopg2
+from psycopg2 import pool
 from pgvector.psycopg2 import register_vector
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
+# Initialize connection pool at module level
+# min 2 connections always ready, max 10 under load
+_connection_pool = None
+
+def get_pool():
+    """
+    Returns the connection pool, initializing it on first call.
+    Uses lazy initialization to avoid connecting at import time.
+    """
+    global _connection_pool
+    if _connection_pool is None:
+        _connection_pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=2,
+            maxconn=10,
+            host=os.getenv("DB_HOST", "localhost"),
+            port=os.getenv("DB_PORT", 5432),
+            dbname=os.getenv("DB_NAME", "codebase_chat"),
+            user=os.getenv("DB_USER", "admin"),
+            password=os.getenv("DB_PASSWORD", "admin")
+        )
+    return _connection_pool
+
 def get_connection():
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=os.getenv("DB_PORT", 5432),
-        dbname=os.getenv("DB_NAME", "codebase_chat"),
-        user=os.getenv("DB_USER", "admin"),
-        password=os.getenv("DB_PASSWORD", "admin")
-    )
+    """
+    Retrieves a connection from the pool and registers
+    the pgvector type handler on it.
+    """
+    conn = get_pool().getconn()
     register_vector(conn)
     return conn
+
+def release_connection(conn):
+    """
+    Returns a connection back to the pool for reuse.
+    Always call this in a finally block.
+    """
+    get_pool().putconn(conn)
 
 def store_chunks(enriched_chunks: list[dict]):
     """
@@ -59,7 +87,7 @@ def store_chunks(enriched_chunks: list[dict]):
         raise RuntimeError(f"Failed to store chunks: {e}")
     finally:
         cursor.close()
-        conn.close()
+        release_connection(conn)
 
 def search_chunks(query_embedding: list[float], top_k: int = 5) -> list[dict]:
     """
@@ -102,4 +130,4 @@ def search_chunks(query_embedding: list[float], top_k: int = 5) -> list[dict]:
 
     finally:
         cursor.close()
-        conn.close()
+        release_connection(conn)
