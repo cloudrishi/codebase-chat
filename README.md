@@ -4,21 +4,24 @@
 
 No cloud APIs. No subscriptions. Runs entirely on local hardware.
 
+![CI](https://github.com/cloudrishi/codebase-chat/actions/workflows/ci.yml/badge.svg)
+
+`java 21` · `python 3.11` · `spring boot 3.5` · `ollama` · `pgvector` · `mit`
 ---
 
 ## demo
 
-```
-Question: "how does the brace counting work?"
+**1. Start the app and enter a Java repository path**
 
-Answer: The _find_closing_brace method in java_parser.py walks
-the source lines from a given start position, counting opening
-and closing braces. When the depth returns to zero after finding
-the first opening brace, it returns that line as the method end.
-A fallback of start + 50 lines is used if no match is found.
+![home](docs/code-base-home.png)
 
-Sources: java_parser.py · _find_closing_brace
-```
+**2. Index the repository — AST parsing + embedding runs in the background**
+
+![indexed](docs/code-base-index.png)
+
+**3. Ask a natural language question — get an answer grounded in your actual source code**
+
+![answer](docs/code-base-qna.png)
 
 ---
 
@@ -107,7 +110,6 @@ Retrieved chunks are formatted into a structured Markdown prompt and sent to Oll
 
 - Docker Desktop
 - Java 21
-- Python 3.11
 - Node.js 20
 - Ollama
 
@@ -119,32 +121,24 @@ ollama pull llama3.1:8b
 
 ## running locally
 
-### 1. start the database
+### 1. start postgres and the AI worker
 
 ```bash
+cp .env.example .env   # set ALLOWED_BASE_PATHS to the parent directory of your Java repos
 docker compose up -d
 ```
 
-### 2. start the AI worker
+This starts PostgreSQL 16 with pgvector and the Python AI Worker. The database schema and vector indexes are created automatically on first boot via `init.sql`.
 
-```bash
-cd ai-worker
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # edit with your DB credentials
-uvicorn app.main:app --reload --port 8001
-```
-
-### 3. start the backend
+### 2. start the backend
 
 ```bash
 cd backend
-cp .env.example .env  # edit with your credentials
+cp .env.example .env
 ./mvnw spring-boot:run
 ```
 
-### 4. start the frontend
+### 3. start the frontend
 
 ```bash
 cd frontend
@@ -154,6 +148,39 @@ npm run dev
 ```
 
 Open `http://localhost:3000`
+
+---
+
+## environment variables
+
+### root `.env`
+
+```
+DB_NAME=codebase_chat
+DB_USER=admin
+DB_PASSWORD=admin
+AI_WORKER_PORT=8001
+ALLOWED_BASE_PATHS=/path/to/your/projects,/tmp
+REPO_MOUNT_PATH=/path/to/your/projects
+```
+
+### backend `.env`
+
+```
+DB_URL=jdbc:postgresql://localhost:5432/codebase_chat
+DB_USERNAME=admin
+DB_PASSWORD=admin
+AI_WORKER_URL=http://localhost:8001
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+```
+
+### frontend `.env.local`
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8080
+```
 
 ---
 
@@ -188,9 +215,10 @@ The context is formatted with Markdown `###` headers between chunks — exploiti
 
 ### Security hardening
 - Credentials externalized to environment variables with safe fallbacks for local dev
-- Path traversal protection on `/index` — allowlist validates repo paths before filesystem access
-- CORS restricted from wildcard to configured frontend origin
+- Path traversal protection on `/index` — allowlist validates repo paths before filesystem access; `os.sep` appended to base paths prevents prefix collision attacks (e.g. `/projects-evil` matching `/projects`)
+- CORS restricted from wildcard to configured origin via `CORS_ALLOWED_ORIGINS`
 - NPE eliminated in `AiWorkerClient` via null checks and `Optional`
+- AI worker errors logged via SLF4J before being swallowed — failures always leave a trace
 - Constructor injection throughout — no field injection, fully testable
 
 ### Separation of concerns
@@ -202,6 +230,9 @@ The Python microservice owns all ML operations. Spring Boot owns orchestration a
 
 ```
 codebase-chat/
+├── .github/
+│   └── workflows/
+│       └── ci.yml              GitHub Actions — pytest + Maven run in parallel
 ├── ai-worker/                  Python FastAPI — AST parsing + embeddings
 │   ├── app/
 │   │   ├── main.py             FastAPI entry point — /index and /query endpoints
@@ -209,23 +240,31 @@ codebase-chat/
 │   │   ├── db.py               pgvector storage, connection pool, cosine search
 │   │   └── parser/
 │   │       └── java_parser.py  javalang AST chunker — brace-counting boundaries
-│   ├── requirements.txt
-│   └── .env.example
+│   ├── tests/
+│   │   ├── test_is_safe_path.py    Path traversal + allowlist tests (8 cases)
+│   │   └── test_java_parser.py     Brace-counting chunker tests (8 cases)
+│   ├── Dockerfile
+│   ├── pytest.ini
+│   └── requirements.txt
 ├── backend/                    Spring Boot — RAG orchestration
-│   └── src/main/java/com/cloudrishi/codebasechat/
-│       ├── controller/
-│       │   └── ChatController.java     REST endpoints — /api/index, /api/chat
-│       ├── service/
-│       │   └── ChatService.java        RAG pipeline — retrieve → augment → generate
-│       ├── client/
-│       │   └── AiWorkerClient.java     WebClient — calls Python microservice
-│       ├── model/
-│       │   ├── QueryRequest.java
-│       │   ├── QueryResponse.java
-│       │   ├── IndexRequest.java
-│       │   └── CodeChunk.java
-│       └── config/
-│           └── OllamaConfig.java       LangChain4j Ollama bean
+│   └── src/
+│       ├── main/java/com/cloudrishi/codebasechat/
+│       │   ├── controller/
+│       │   │   └── ChatController.java     REST endpoints — /api/index, /api/chat
+│       │   ├── service/
+│       │   │   └── ChatService.java        RAG pipeline — retrieve → augment → generate
+│       │   ├── client/
+│       │   │   └── AiWorkerClient.java     WebClient — calls Python microservice
+│       │   ├── model/
+│       │   │   ├── QueryRequest.java
+│       │   │   ├── QueryResponse.java
+│       │   │   ├── IndexRequest.java
+│       │   │   └── CodeChunk.java
+│       │   └── config/
+│       │       └── OllamaConfig.java       LangChain4j Ollama bean
+│       └── test/java/com/cloudrishi/codebasechat/
+│           └── client/
+│               └── AiWorkerClientTest.java  MockWebServer tests — null guards (9 cases)
 ├── frontend/                   Next.js — chat UI
 │   └── app/
 │       ├── components/
@@ -236,6 +275,10 @@ codebase-chat/
 │       ├── globals.css                 Design tokens — IBM Plex Mono, #00D4FF accent
 │       ├── layout.tsx
 │       └── page.tsx
+├── docs/                       Screenshots
+├── docker-compose.yml          Postgres + AI Worker — full local environment
+├── init.sql                    pgvector extension, schema, indexes
+├── LICENSE
 └── README.md
 ```
 
@@ -243,7 +286,7 @@ codebase-chat/
 
 ## code quality
 
-Independently reviewed against Robert Martin, Martin Fowler, Kent Beck, and Ward Cunningham standards. Scores reflect the current state of the codebase after security hardening and stability improvements.
+Independently reviewed against Robert Martin, Martin Fowler, Kent Beck, and Ward Cunningham standards.
 
 | Metric | Score | Notes |
 |---|---|---|
@@ -251,24 +294,26 @@ Independently reviewed against Robert Martin, Martin Fowler, Kent Beck, and Ward
 | Clarity and naming | 8/10 | Self-describing methods throughout — `buildContext`, `mapToCodeChunk`, `parse_java_file` |
 | Documentation | 9/10 | Full Javadoc, Python docstrings, comprehensive README |
 | Single responsibility | 7/10 | Good separation across services; `db.py` mixes connection and query logic |
-| Error handling | 7/10 | try/except/finally, transaction rollback, null checks, Optional |
-| Security | 7/10 | Path traversal protected, CORS restricted, credentials externalized |
-| Production readiness | 5/10 | Solid prototype; CI/CD and test coverage still pending |
-| Testability | 3/10 | Constructor injection helps; external dependencies not yet abstracted behind interfaces |
-| Test coverage | 1/10 | Pending — see roadmap |
-| **Project average MI** | **~78** | **Good** |
+| Error handling | 7/10 | try/except/finally, transaction rollback, null checks, Optional, SLF4J logging |
+| Security | 8/10 | Path traversal protected with prefix-collision fix, CORS restricted, credentials externalized |
+| Test coverage | 4/10 | 25 tests across Python and Java layers; integration layer not yet covered |
+| Testability | 5/10 | Constructor injection + MockWebServer enables unit testing without live services |
+| CI/CD | 7/10 | GitHub Actions runs pytest and Maven in parallel on every push |
+| Production readiness | 5/10 | Full local environment via Docker Compose; env profiles and rate limiting still pending |
+| **Project average** | **~7/10** | Solid portfolio-grade codebase |
 
 ---
 
 ## roadmap
 
-- **Test coverage** — JUnit 5 + Mockito for Java layer; `unittest.mock` for Python layer; target 80% line coverage
 - **Hybrid search** — combine pgvector cosine similarity with PostgreSQL full-text search for better recall
+- **Integration tests** — test the full RAG pipeline end-to-end against a real pgvector instance
 - **Git webhook trigger** — auto re-index on push to main branch
 - **Graph view** — visualize class/method relationships in the React frontend
 - **Multi-repo support** — index and query multiple repositories simultaneously
 - **Token-aware chunking** — enforce 512-token limit per chunk to prevent embedding truncation
-- **Dockerize all layers** — single `docker compose up` to run the full stack
+- **Dockerize backend** — single `docker compose up` to run the full stack
+- **Env profiles** — separate dev/prod configurations with hardened production defaults
 
 ---
 
