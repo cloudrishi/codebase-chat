@@ -6,21 +6,20 @@ from app.db import store_chunks, search_chunks
 from pathlib import Path
 import os
 
-# Allowlist of safe root directories
+# Allowlist of safe root directories — comma-separated env var
+# Example: ALLOWED_BASE_PATHS=/home/user/projects,/tmp
 ALLOWED_BASE_PATHS = [
-    os.path.expanduser("~/working"),
-    "/tmp"
+    p.strip()
+    for p in os.getenv("ALLOWED_BASE_PATHS", "/tmp").split(",")
+    if p.strip()
 ]
 
 def is_safe_path(path: str) -> bool:
-    """
-    Validates that the requested repo path is within
-    an allowed base directory to prevent path traversal attacks.
-    """
     try:
         resolved = Path(path).resolve()
         return any(
-            str(resolved).startswith(str(Path(base).resolve()))
+            resolved == Path(base).resolve() or
+            str(resolved).startswith(str(Path(base).resolve()) + os.sep)
             for base in ALLOWED_BASE_PATHS
         )
     except Exception:

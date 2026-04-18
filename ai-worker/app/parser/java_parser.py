@@ -1,5 +1,3 @@
-from platform import node
-
 import javalang
 from dataclasses import dataclass
 from typing import Optional
@@ -51,7 +49,7 @@ def parse_java_file(file_path: str) -> list[CodeChunk]:
     try:
        tree = javalang.parse.parse(source)
     except javalang.parser.JavaSyntaxError as e:
-        print(f"Skiping {file_path} - syntax error: {e}")
+        print(f"Skipping {file_path} - syntax error: {e}")
         return chunks
     
     lines = source.splitlines()

@@ -21,7 +21,7 @@ export default function IndexPanel({ onIndexed }: IndexPanelProps) {
     setMessage("");
 
     try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/index`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/index`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoPath }),
@@ -47,7 +47,7 @@ export default function IndexPanel({ onIndexed }: IndexPanelProps) {
           type="text"
           value={repoPath}
           onChange={(e) => setRepoPath(e.target.value)}
-          placeholder="/Users/rish/working/p2-projects/master-data-service/src/main/java"
+          placeholder="/path/to/your/java/project/src/main/java"
           className="flex-1 bg-[var(--surface)] border border-[var(--border)] 
                      text-[var(--foreground)] px-3 py-2 text-xs outline-none
                      focus:border-[var(--accent)] transition-colors"

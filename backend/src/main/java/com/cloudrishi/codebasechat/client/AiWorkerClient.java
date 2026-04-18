@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
+
 /**
  * HTTP client responsible for communicating with the Python AI Worker microservice.
  * <p>
@@ -20,6 +24,8 @@ import java.util.Optional;
  */
 @Component
 public class AiWorkerClient {
+
+    private static final Logger log = LoggerFactory.getLogger(AiWorkerClient.class);
 
     private final WebClient webClient;
 
@@ -91,7 +97,15 @@ public class AiWorkerClient {
                 .uri("/index")
                 .bodyValue(request)
                 .retrieve()
+                .onStatus(
+                        status -> status.is4xxClientError() || status.is5xxServerError(),
+                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                .map(body -> new RuntimeException(
+                                        "AI worker error " + clientResponse.statusCode().value() + ": " + body))
+                )
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .doOnError(ex -> log.warn("AI worker /index call failed: {}", ex.getMessage()))
+                .onErrorResume(ex -> Mono.empty())
                 .block();
 
         if (response == null) {
@@ -103,17 +117,6 @@ public class AiWorkerClient {
                 .orElse("unknown status");
     }
 
-    /**
-     * Safely casts a raw object from the API response list
-     * to a Map and delegates to mapToCodeChunk.
-     *
-     * @param item raw object from the deserialized JSON list
-     * @return a populated {@link CodeChunk} object
-     */
-    @SuppressWarnings("unchecked")
-    private CodeChunk mapFromRaw(Object item) {
-        return mapToCodeChunk((Map<?, ?>) item);
-    }
     /**
      * Maps a raw JSON response map from the AI Worker
      * into a typed {@link CodeChunk} domain object.

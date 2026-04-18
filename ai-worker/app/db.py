@@ -98,6 +98,8 @@ def search_chunks(query_embedding: list[float], top_k: int = 5) -> list[dict]:
     cursor = conn.cursor()
 
     try:
+        # query_embedding bound once — similarity alias used in ORDER BY
+        # Note: ORDER BY alias bypasses pgvector ANN index; acceptable at this scale
         cursor.execute("""
             SELECT 
                 file_path,
@@ -107,9 +109,9 @@ def search_chunks(query_embedding: list[float], top_k: int = 5) -> list[dict]:
                 content,
                 1 - (embedding <=> %s::vector) AS similarity
             FROM codebase.code_chunks
-            ORDER BY embedding <=> %s::vector
+            ORDER BY similarity DESC
             LIMIT %s
-        """, (query_embedding, query_embedding, top_k))
+        """, (query_embedding, top_k))
 
         rows = cursor.fetchall()
 

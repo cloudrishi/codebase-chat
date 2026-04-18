@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  python-tests:
+    name: AI Worker — pytest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: codebase_chat
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d codebase_chat"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: codebase_chat
+      DB_USER: admin
+      DB_PASSWORD: admin
+      ALLOWED_BASE_PATHS: /tmp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ai-worker/requirements.txt
+
+      - name: Install dependencies
+        working-directory: ai-worker
+        run: pip install -r requirements.txt pytest
+
+      - name: Run tests
+        working-directory: ai-worker
+        run: pytest
+
+  java-tests:
+    name: Backend — Maven
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests
+        working-directory: backend
+        run: ./mvnw test
