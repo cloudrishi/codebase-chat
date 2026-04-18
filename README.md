@@ -9,19 +9,15 @@ No cloud APIs. No subscriptions. Runs entirely on local hardware.
 ## demo
 
 ```
-Question: "how does login work?"
+Question: "how does the brace counting work?"
 
-Answer: The login process works as follows:
+Answer: The _find_closing_brace method in java_parser.py walks
+the source lines from a given start position, counting opening
+and closing braces. When the depth returns to zero after finding
+the first opening brace, it returns that line as the method end.
+A fallback of start + 50 lines is used if no match is found.
 
-1. The client sends a POST request to /login with a LoginRequest object
-2. AuthController.login() receives the request and delegates to UserService.login()
-3. UserService finds the user by email via userRepository.findByEmail()
-4. Account status is checked — throws AccountStatusException if not ACTIVE
-5. Password is verified via passwordEncoder.matches() against the stored hash
-6. JWT token is generated via jwtService.generateToken() and returned
-7. AuthController sets the token as an HttpOnly cookie via CookieUtil
-
-Sources: AuthController.java · UserService.java · LoginRequest.java
+Sources: java_parser.py · _find_closing_brace
 ```
 
 ---
