@@ -6,7 +6,7 @@ No cloud APIs. No subscriptions. Runs entirely on local hardware.
 
 ![CI](https://github.com/cloudrishi/codebase-chat/actions/workflows/ci.yml/badge.svg)
 
-`java 21` · `python 3.11` · `spring boot 3.5` · `ollama` · `pgvector` · `mit`
+java 21 · python 3.11 · spring boot 3.5 · langchain4j · ollama · pgvector · mit
 ---
 
 ## demo
